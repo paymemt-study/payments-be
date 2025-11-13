@@ -1,0 +1,35 @@
+name: payments-be-local
+
+networks:
+  default:
+    name: payments-be-network
+
+volumes:
+  payments_mysql_data:
+  payments_mysql_conf:
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: payments-mysql
+    ports:
+      - "33068:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_DATABASE: payments_db
+      TZ: Asia/Seoul
+    command: >
+      mysqld
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --explicit_defaults_for_timestamp=1
+      --lower_case_table_names=1
+    volumes:
+      - payments_mysql_data:/var/lib/mysql
+      - payments_mysql_conf:/etc/mysql/conf.d
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -pmysql --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: always
