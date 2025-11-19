@@ -1,9 +1,11 @@
 package com.paymentsbe.payment.service;
 
+import com.paymentsbe.common.exception.PaymentGatewayException;
 import com.paymentsbe.config.TossProperties;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -35,12 +37,19 @@ public class TossClient {
                 "amount", amount
         );
 
-        return tossRestClient.post()
-                .uri("/payments/confirm")
-                .header("Authorization", basicAuthHeader())
-                .header("Content-Type", "application/json")
-                .body(requestBody)
-                .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {});// 처음엔 Map으로 받고, 나중에 DTO로 바꿔도 됨
+        try {
+            return tossRestClient.post()
+                    .uri("/payments/confirm")
+                    .header("Authorization", basicAuthHeader())
+                    .header("Content-Type", "application/json")
+                    .body(requestBody)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        } catch (RestClientResponseException e) {
+            throw new PaymentGatewayException(
+                    e.getStatusCode().value(),
+                    e.getResponseBodyAsString()
+            );
+        }
     }
 }
