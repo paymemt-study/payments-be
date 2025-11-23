@@ -7,6 +7,7 @@ import com.paymentsbe.order.repository.OrderRepository;
 import com.paymentsbe.payment.api.dto.PaymentApproveRequest;
 import com.paymentsbe.payment.api.dto.PaymentApproveResponse;
 import com.paymentsbe.payment.domain.Payment;
+import com.paymentsbe.payment.domain.PaymentStatus;
 import com.paymentsbe.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,15 +39,28 @@ public class PaymentApproveService {
         }
 
         // 3) Toss 승인 호출
-        Map<String, Object> tossResponse =
-                tossClient.confirmPayment(req.paymentKey(), req.orderId(), req.amount());
+        Map<String, Object> tossResponse;
+        try {
+            tossResponse = tossClient.confirmPayment(
+                    req.paymentKey(),
+                    req.orderId(),
+                    req.amount()
+            );
+        } catch (RuntimeException e) {
+            order.markFailed();
+            throw e;
+        }
 
         // 4) Payment 생성 & 저장
         Payment payment = Payment.fromTossResponse(order, tossResponse);
         paymentRepository.save(payment);
 
         // 5) Order 상태 변경
-        order.markPaid();
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            order.markPaid();
+        } else {
+            order.markFailed();
+        }
 
         // 6) 응답 DTO
         return PaymentApproveResponse.from(payment);

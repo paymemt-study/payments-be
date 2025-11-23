@@ -75,4 +75,11 @@ public class Payment extends TimeBaseEntity {
                 .rawPayload(JsonUtils.toJson(tossResponse))
                 .build();
     }
+    public boolean isPaid() {
+        return this.status == PaymentStatus.PAID;
+    }
+
+    public boolean isCanceled() {
+        return this.status == PaymentStatus.CANCELED || this.status == PaymentStatus.REFUNDED;
+    }
 }

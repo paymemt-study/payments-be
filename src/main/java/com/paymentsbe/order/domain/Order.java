@@ -2,6 +2,8 @@ package com.paymentsbe.order.domain;
 
 import com.paymentsbe.common.entity.TimeBaseEntity;
 import com.paymentsbe.user.domain.User;
+import com.paymentsbe.common.exception.BusinessException;
+import com.paymentsbe.common.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -63,15 +65,45 @@ public class Order extends TimeBaseEntity {
         return this.status == OrderStatus.PENDING;
     }
 
+    public boolean isPaid() {
+        return this.status == OrderStatus.PAID;
+    }
+
+    public boolean isCanceled() {
+        return this.status == OrderStatus.CANCELED;
+    }
+
+    public boolean isFailed() {
+        return this.status == OrderStatus.FAILED;
+    }
+
+    /**
+     * 결제 승인 성공 시 호출
+     */
     public void markPaid() {
+        if (!isPending()) {
+            throw new BusinessException(ErrorCode.ALREADY_PROCESSED);
+        }
         this.status = OrderStatus.PAID;
     }
 
+    /**
+     * 결제 실패 시 호출 (PG 오류, 승인 실패 등)
+     * 이미 PAID/CANCELED 상태라면 굳이 예외 던질 필요 없이 무시해도 됨.
+     */
     public void markFailed() {
-        this.status = OrderStatus.FAILED;
+        if (isPending()) {
+            this.status = OrderStatus.FAILED;
+        }
     }
 
+    /**
+     * 주문 취소(환불 완료 후) 시 호출
+     */
     public void cancel() {
+        if (!isPaid()) {
+            throw new BusinessException(ErrorCode.CANNOT_CANCEL_ORDER);
+        }
         this.status = OrderStatus.CANCELED;
     }
 }
