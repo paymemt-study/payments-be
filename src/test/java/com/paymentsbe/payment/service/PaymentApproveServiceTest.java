@@ -187,4 +187,95 @@ class PaymentApproveServiceTest {
         then(tossClient).shouldHaveNoInteractions();
         then(paymentRepository).shouldHaveNoInteractions();
     }
+    @Test
+    @DisplayName("Toss API 호출 중 예외가 발생하면 주문은 FAILED 로 바뀌고 예외를 그대로 던진다")
+    void approve_pg_error_sets_order_failed() {
+        // given
+        String orderExternalId = "ORD-ERR-1234";
+        Long amount = 50_000L;
+
+        PaymentApproveRequest req = new PaymentApproveRequest(
+                "payKey-error",
+                orderExternalId,
+                amount
+        );
+
+        Order order = Order.builder()
+                .id(1L)
+                .externalId(orderExternalId)
+                .totalAmountKrw(amount)
+                .currency("KRW")
+                .status(OrderStatus.PENDING)
+                .build();
+
+        given(orderRepository.findByExternalId(orderExternalId))
+                .willReturn(Optional.of(order));
+
+        // Toss API에서 런타임 예외 발생
+        RuntimeException tossException = new RuntimeException("Toss error");
+        given(tossClient.confirmPayment(req.paymentKey(), req.orderId(), req.amount()))
+                .willThrow(tossException);
+
+        // when & then
+        assertThatThrownBy(() -> paymentApproveService.approve(req))
+                .isSameAs(tossException);
+
+        // 주문 상태는 FAILED 로 변경되어야 함
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED);
+
+        // Payment 는 저장되지 않아야 함
+        then(paymentRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("Toss 응답 status 가 DONE 이 아니면 Payment, Order 모두 FAILED 로 처리된다")
+    void approve_toss_returns_failed_status() {
+        // given
+        String orderExternalId = "ORD-FAIL-1234";
+        Long amount = 50_000L;
+
+        PaymentApproveRequest req = new PaymentApproveRequest(
+                "payKey-5678",
+                orderExternalId,
+                amount
+        );
+
+        Order order = Order.builder()
+                .id(1L)
+                .externalId(orderExternalId)
+                .totalAmountKrw(amount)
+                .currency("KRW")
+                .status(OrderStatus.PENDING)
+                .build();
+
+        given(orderRepository.findByExternalId(orderExternalId))
+                .willReturn(Optional.of(order));
+
+        Map<String, Object> tossResponse = Map.of(
+                "paymentKey", "payKey-5678",
+                "orderId", orderExternalId,
+                "totalAmount", amount,
+                "status", "CANCELED", // DONE 이 아님
+                "method", "카드"
+        );
+
+        given(tossClient.confirmPayment(req.paymentKey(), req.orderId(), req.amount()))
+                .willReturn(tossResponse);
+
+        ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
+
+        // when
+        PaymentApproveResponse resp = paymentApproveService.approve(req);
+
+        // then
+        then(paymentRepository).should().save(paymentCaptor.capture());
+        Payment saved = paymentCaptor.getValue();
+
+        assertThat(saved.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED);
+
+        // 응답도 FAILED 상태의 금액/주문번호를 그대로 반환해야 함
+        assertThat(resp.orderId()).isEqualTo(orderExternalId);
+        assertThat(resp.amount()).isEqualTo(amount);
+    }
 }
