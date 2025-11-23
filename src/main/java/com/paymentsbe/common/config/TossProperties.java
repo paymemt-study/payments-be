@@ -1,4 +1,4 @@
-package com.paymentsbe.config;
+package com.paymentsbe.common.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
