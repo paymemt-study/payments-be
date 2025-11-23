@@ -30,10 +30,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
-    // Swagger(OpenAPI)
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:2.5.0'
-    implementation 'org.springdoc:springdoc-openapi-starter-common:2.5.0'
+    // Swagger(OpenAPI) - springdoc (Boot 3용)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
