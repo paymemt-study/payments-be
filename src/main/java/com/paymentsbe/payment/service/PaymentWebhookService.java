@@ -72,10 +72,14 @@ public class PaymentWebhookService {
         switch (status) {
             case "DONE" -> handleApproved(payment, order, payload);
 
-            case "CANCELED", "PARTIAL_CANCELED" ->
-                    handleCanceled(payment, order, payload, status);
-
             case "FAILED" -> handleFailed(payment, order);
+
+            case "CANCELED", "PARTIAL_CANCELED" -> {
+                // 환불/취소 금액 및 상태 변경은 우리 서버의 PaymentCancelService에서만 처리
+                // Webhook에서는 이벤트 로그만 남기고 비즈니스 로직은 건드리지 않는다.
+                log.info("[Webhook] Cancel event received from Toss (ignored for refund logic). " +
+                        "orderId={} status={}", order.getExternalId(), status);
+            }
 
             default -> log.warn("[Webhook] Unknown payment status={}, eventType={}",
                     status, payload.eventType());
