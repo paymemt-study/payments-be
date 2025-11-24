@@ -1,14 +1,16 @@
 package com.paymentsbe.order.domain;
 
 import com.paymentsbe.common.entity.TimeBaseEntity;
-import com.paymentsbe.user.domain.User;
 import com.paymentsbe.common.exception.BusinessException;
 import com.paymentsbe.common.exception.ErrorCode;
+import com.paymentsbe.user.domain.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -41,6 +43,12 @@ public class Order extends TimeBaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private OrderStatus status;
 
+    // --- OrderLine 컬렉션 연관관계 추가 ---
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 50)
+    @lombok.Builder.Default
+    private List<OrderLine> orderLines = new ArrayList<>();
+
     // TODO: 쿠폰 붙이면 coupon 필드 추가 (Coupon 엔티티와 연관관계)
 
     public static Order create(User user, Long amountKrw) {
@@ -53,14 +61,55 @@ public class Order extends TimeBaseEntity {
                 .build();
     }
 
+    public static Order createEmpty(User user) {
+        return Order.builder()
+                .externalId(generateExternalId())
+                .user(user)
+                .totalAmountKrw(0L)
+                .currency("KRW")
+                .status(OrderStatus.PENDING)
+                .build();
+    }
+
     private static String generateExternalId() {
         String suffix = UUID.randomUUID().toString().replace("-", "")
                 .substring(0, 8);
         return "ORD-" + suffix;
     }
 
+    // ==============================
+    //    연관관계 편의 메서드
+    // ==============================
 
-    // 비즈니스 메서드
+    public void addOrderLine(OrderLine line) {
+        if (line == null) {
+            return;
+        }
+        this.orderLines.add(line);
+        line.assignOrder(this);
+        recalculateTotalAmount();
+    }
+
+    public void removeOrderLine(OrderLine line) {
+        if (line == null) {
+            return;
+        }
+        this.orderLines.remove(line);
+        line.assignOrder(null);
+        recalculateTotalAmount();
+    }
+
+    public void recalculateTotalAmount() {
+        long sum = this.orderLines.stream()
+                .mapToLong(OrderLine::getLineAmountKrw)
+                .sum();
+        this.totalAmountKrw = sum;
+    }
+
+    // ==============================
+    //      비즈니스 메서드
+    // ==============================
+
     public boolean isPending() {
         return this.status == OrderStatus.PENDING;
     }
@@ -77,9 +126,6 @@ public class Order extends TimeBaseEntity {
         return this.status == OrderStatus.FAILED;
     }
 
-    /**
-     * 결제 승인 성공 시 호출
-     */
     public void markPaid() {
         if (!isPending()) {
             throw new BusinessException(ErrorCode.ALREADY_PROCESSED);
@@ -87,19 +133,12 @@ public class Order extends TimeBaseEntity {
         this.status = OrderStatus.PAID;
     }
 
-    /**
-     * 결제 실패 시 호출 (PG 오류, 승인 실패 등)
-     * 이미 PAID/CANCELED 상태라면 굳이 예외 던질 필요 없이 무시해도 됨.
-     */
     public void markFailed() {
         if (isPending()) {
             this.status = OrderStatus.FAILED;
         }
     }
 
-    /**
-     * 주문 취소(환불 완료 후) 시 호출
-     */
     public void cancel() {
         if (!isPaid()) {
             throw new BusinessException(ErrorCode.CANNOT_CANCEL_ORDER);

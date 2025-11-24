@@ -73,7 +73,7 @@ public class PaymentWebhookService {
             case "DONE" -> handleApproved(payment, order, payload);
 
             case "CANCELED", "PARTIAL_CANCELED" ->
-                    handleCanceled(payment, order, payload);
+                    handleCanceled(payment, order, payload, status);
 
             case "FAILED" -> handleFailed(payment, order);
 
@@ -94,15 +94,12 @@ public class PaymentWebhookService {
         log.info("[Webhook] Payment failed synced. orderId={}", order.getExternalId());
     }
 
-    private void handleCanceled(Payment payment, Order order, TossWebhookPayload payload) {
-
+    private void handleCanceled(Payment payment, Order order, TossWebhookPayload payload, String pgStatus) {
         Long cancelAmount = payload.data().cancelAmount();
         if (cancelAmount == null) {
-            // 토스가 cancelAmount 안 줄 수도 있으니, 남은 금액 전체를 취소로 간주 (필요하면 조정)
             cancelAmount = payment.getRemainingAmountKrw();
         }
 
-        // 1) Refund 이력 저장
         Refund refund = Refund.builder()
                 .payment(payment)
                 .refundAmountKrw(cancelAmount)
@@ -112,18 +109,22 @@ public class PaymentWebhookService {
                 .build();
         refundRepository.save(refund);
 
-        // 2) Payment 누적 환불 금액 갱신
         payment.addRefundedAmount(cancelAmount);
 
-        // 3) 상태 전이
-        if (payment.getRemainingAmountKrw() == 0) {
+        long remaining = payment.getRemainingAmountKrw();
+
+        boolean partialByAmount = remaining > 0;
+        boolean partialByPg = "PARTIAL_CANCELED".equals(pgStatus);
+
+        if (partialByAmount || partialByPg) {
+            payment.markPartialRefund();
+            log.info("[Webhook] Partial refund synced. orderId={} cancelAmount={} remaining={}",
+                    order.getExternalId(), cancelAmount, remaining);
+        } else {
             payment.markRefunded();
             order.cancel();
-        } else {
-            payment.markPartialRefund();
+            log.info("[Webhook] Full refund synced. orderId={} cancelAmount={}",
+                    order.getExternalId(), cancelAmount);
         }
-
-        log.info("[Webhook] Payment canceled synced. orderId={} cancelAmount={}",
-                order.getExternalId(), cancelAmount);
     }
 }
