@@ -109,4 +109,16 @@ public class Payment extends TimeBaseEntity {
         long refunded = this.refundedAmountKrw != null ? this.refundedAmountKrw : 0L;
         return this.amountKrw - refunded;
     }
+
+    public void markPaid() {
+        this.status = PaymentStatus.PAID;
+    }
+
+    public void markFailed() {
+        this.status = PaymentStatus.FAILED;
+    }
+
+    public void markCanceled() {
+        this.status = PaymentStatus.CANCELED;
+    }
 }
