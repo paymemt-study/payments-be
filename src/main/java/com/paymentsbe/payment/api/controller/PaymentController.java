@@ -1,9 +1,8 @@
 package com.paymentsbe.payment.api.controller;
 
-import com.paymentsbe.payment.api.dto.PaymentApproveRequest;
-import com.paymentsbe.payment.api.dto.PaymentApproveResponse;
-import com.paymentsbe.payment.api.dto.PaymentFailRequest;
+import com.paymentsbe.payment.api.dto.*;
 import com.paymentsbe.payment.service.PaymentApproveService;
+import com.paymentsbe.payment.service.PaymentCancelService;
 import com.paymentsbe.payment.service.PaymentFailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +18,7 @@ public class PaymentController {
 
     private final PaymentApproveService paymentApproveService;
     private final PaymentFailService paymentFailService;
+    private final PaymentCancelService paymentCancelService;
 
     @PostMapping("/confirm")
     public ResponseEntity<PaymentApproveResponse> confirm(
@@ -34,5 +34,13 @@ public class PaymentController {
     ) {
         paymentFailService.handleFail(request);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/cancel")
+    public ResponseEntity<PaymentCancelResponse> cancel(
+            @RequestBody PaymentCancelRequest request
+    ) {
+        PaymentCancelResponse response = paymentCancelService.cancel(request);
+        return ResponseEntity.ok(response);
     }
 }

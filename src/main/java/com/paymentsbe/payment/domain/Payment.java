@@ -82,4 +82,12 @@ public class Payment extends TimeBaseEntity {
     public boolean isCanceled() {
         return this.status == PaymentStatus.CANCELED || this.status == PaymentStatus.REFUNDED;
     }
+
+    public void markRefunded() {
+        this.status = PaymentStatus.REFUNDED;
+    }
+
+    public void markPartialRefund() {
+        this.status = PaymentStatus.PARTIAL_REFUND;
+    }
 }
