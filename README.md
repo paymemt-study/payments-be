@@ -1,9 +1,9 @@
-# **Payments BE – 결제 시스템 데모 서버**
+# 💳 **Payments BE – 결제 시스템 데모 서버**
 
 Spring Boot 기반 결제/주문 시스템 데모 프로젝트입니다.
 
 TossPayments를 이용한 카드 결제 · 취소 · Webhook 동기화를 포함합니다.
-## 📦 패키지 구조
+## 📁 패키지 구조
 
 ```text
 com.paymentsbe
