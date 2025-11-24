@@ -1,6 +1,5 @@
 package com.paymentsbe.order.api.dto;
 
-
 import com.paymentsbe.order.domain.Order;
 import com.paymentsbe.order.domain.OrderStatus;
 import com.paymentsbe.payment.domain.Payment;
@@ -24,7 +23,9 @@ public record OrderDetailResponse(
             Long paymentId,
             String provider,
             String method,
-            Long amountKrw,
+            Long amountKrw,             // 총 결제 금액
+            Long refundedAmountKrw,     // 누적 환불 금액
+            Long remainingAmountKrw,    // 남은 환불 가능 금액
             PaymentStatus status,
             Instant approvedAt
     ) {
@@ -36,6 +37,8 @@ public record OrderDetailResponse(
                     .provider(payment.getProvider().name())
                     .method(payment.getMethod())
                     .amountKrw(payment.getAmountKrw())
+                    .refundedAmountKrw(payment.getRefundedAmountKrw())
+                    .remainingAmountKrw(payment.getRemainingAmountKrw())
                     .status(payment.getStatus())
                     .approvedAt(payment.getApprovedAt() != null
                             ? payment.getApprovedAt().toInstant()

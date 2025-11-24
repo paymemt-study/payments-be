@@ -16,6 +16,7 @@ public enum ErrorCode {
 
     // 결제 관련
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PAYMENT_NOT_FOUND", "결제를 찾을 수 없습니다."),
+    INVALID_REFUND_AMOUNT(HttpStatus.BAD_REQUEST, "INVALID_REFUND_AMOUNT", "유효하지 않은 환불 금액입니다."),
     INVALID_PAYMENT_STATUS(HttpStatus.BAD_REQUEST, "INVALID_PAYMENT_STATUS", "유효하지 않은 결제 상태입니다."),
 
     // PG(Toss) 연동 에러

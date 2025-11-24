@@ -40,6 +40,9 @@ public class Payment extends TimeBaseEntity {
     @Column(name = "amount_krw", nullable = false)
     private Long amountKrw;
 
+    @Column(name = "refunded_amount_krw", nullable = false)
+    private Long refundedAmountKrw;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private PaymentStatus status;
@@ -70,6 +73,7 @@ public class Payment extends TimeBaseEntity {
                 .providerPaymentKey(paymentKey)
                 .method(method)
                 .amountKrw(totalAmount.longValue())
+                .refundedAmountKrw(0L)
                 .status("DONE".equals(status) ? PaymentStatus.PAID : PaymentStatus.FAILED)
                 .approvedAt(approvedAt)
                 .rawPayload(JsonUtils.toJson(tossResponse))
@@ -89,5 +93,20 @@ public class Payment extends TimeBaseEntity {
 
     public void markPartialRefund() {
         this.status = PaymentStatus.PARTIAL_REFUND;
+    }
+
+   //  누적 환불 금액 증가
+    public void addRefundedAmount(long amount) {
+        if (amount <= 0) {
+            return;
+        }
+        long current = this.refundedAmountKrw != null ? this.refundedAmountKrw : 0L;
+        this.refundedAmountKrw = current + amount;
+    }
+
+   // 남은 환불 가능 금액
+    public long getRemainingAmountKrw() {
+        long refunded = this.refundedAmountKrw != null ? this.refundedAmountKrw : 0L;
+        return this.amountKrw - refunded;
     }
 }
